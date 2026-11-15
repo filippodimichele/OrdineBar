@@ -3,20 +3,26 @@ import { useState } from "react";
 import Menu from "./components/Menu";
 import Order from "./components/Order";
 import CheckoutForm from "./components/CheckoutForm";
+import PendingOrders from "./components/PendingOrders";
 import menu from "./data/menu";
 import formatPrice from "./utils/formatPrice";
-import type { Checkout } from "./types";
+import type { Checkout, OrderItem, ConfirmedOrder } from "./types";
 
-type OrderItem = {
-    productId: number;
-    quantity: number;
-};
+const productsById = new Map(menu.map((product) => [product.id, product]));
 
 function App() {
     const [order, setOrder] = useState<OrderItem[]>([]);
     const [confirmation, setConfirmation] = useState("");
+    const [pendingOrders, setPendingOrders] = useState<ConfirmedOrder[]>([]);
 
-    // consegna base: gestione dell'aggiunta dei prodotti all'ordine
+    // calcolo del totale corrente del carrello
+    const total = order.reduce((sum, item) => {
+        const product = productsById.get(item.productId);
+
+        return sum + (product ? product.price * item.quantity : 0);
+    }, 0);
+
+    // aggiunta di prodotti al carrello con limite massimo di quantità
     function handleAdd(id: number) {
         setConfirmation("");
 
@@ -25,60 +31,70 @@ function App() {
                 (item) => item.productId === id
             );
 
-            if (existingItem) {
-                if (existingItem.quantity >= 5) {
-                    return prevOrder;
-                }
+            if (existingItem && existingItem.quantity >= 5) {
+                return prevOrder;
+            }
 
-                return prevOrder.map((item) =>
+            return existingItem
+                ? prevOrder.map((item) =>
                     item.productId === id
                         ? { ...item, quantity: item.quantity + 1 }
                         : item
-                );
-            }
-
-            return [...prevOrder, { productId: id, quantity: 1 }];
+                )
+                : [...prevOrder, { productId: id, quantity: 1 }];
         });
     }
 
-    // consegna base: gestione delle quantità e rimozione dei prodotti
+    // aggiornamento delle quantità e rimozione dei prodotti dal carrello
     function handleQuantityChange(id: number, change: number) {
         setConfirmation("");
 
         setOrder((prevOrder) =>
             prevOrder
-                .map((item) => {
-                    if (item.productId !== id) {
-                        return item;
-                    }
-
-                    const nextQuantity = item.quantity + change;
-
-                    if (nextQuantity > 5) {
-                        return item;
-                    }
-
-                    return { ...item, quantity: nextQuantity };
-                })
+                .map((item) =>
+                    item.productId === id
+                        ? { ...item, quantity: Math.min(item.quantity + change, 5) }
+                        : item
+                )
                 .filter((item) => item.quantity > 0)
         );
     }
 
-    // consegna base: calcolo del totale e gestione della conferma
+    // creazione e registrazione di un ordine confermato
     function handleConfirmOrder(checkout: Checkout) {
-        const total = order.reduce((sum, item) => {
-            const product = menu.find(
-                (product) => product.id === item.productId
-            );
+        const confirmedOrder: ConfirmedOrder = {
+            id: Date.now(),
+            nome: checkout.nome.trim(),
+            classe: checkout.classe.trim(),
+            ritiro: checkout.ritiro,
+            pagamento: checkout.pagamento,
+            products: order.map((item) => {
+                const product = productsById.get(item.productId)!;
 
-            return sum + (product ? product.price * item.quantity : 0);
-        }, 0);
+                return {
+                    productId: product.id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: item.quantity,
+                };
+            }),
+            total,
+        };
+
+        setPendingOrders((prevOrders) => [...prevOrders, confirmedOrder]);
 
         setConfirmation(
-            `Ordine per ${checkout.nome.trim} (${checkout.classe.trim}), ritiro a ${checkout.ritiro}, ${checkout.pagamento}: ${formatPrice(total)}`
+            `Ordine per ${confirmedOrder.nome} (${confirmedOrder.classe}), ritiro a ${confirmedOrder.ritiro}, ${confirmedOrder.pagamento}: ${formatPrice(total)}`
         );
 
         setOrder([]);
+    }
+
+    // rimozione di un ordine dopo il ritiro
+    function handleOrderCollected(id: number) {
+        setPendingOrders((prevOrders) =>
+            prevOrders.filter((item) => item.id !== id)
+        );
     }
 
     return (
@@ -100,6 +116,7 @@ function App() {
                 <CheckoutForm
                     onSubmit={handleConfirmOrder}
                     disabled={order.length === 0}
+                    total={total}
                 />
 
                 {confirmation && (
@@ -108,6 +125,11 @@ function App() {
                     </p>
                 )}
             </section>
+
+            <PendingOrders
+                orders={pendingOrders}
+                onCollected={handleOrderCollected}
+            />
         </main>
     );
 }
