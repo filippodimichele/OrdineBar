@@ -1,15 +1,23 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Checkout } from "../types";
+import CheckoutOptions from "./CheckoutOptions";
+import CheckoutFields from "./CheckoutFields";
+import {
+    emptyErrors,
+    getCheckoutErrors,
+} from "../utils/checkoutValidation";
+import type { FormErrors } from "../utils/checkoutValidation";
 
 type CheckoutFormProps = {
     onSubmit: (checkout: Checkout) => void;
     disabled: boolean;
+    total: number;
 };
 
-// consegna base: gestione del form di conferma con un unico stato
-function CheckoutForm({ onSubmit, disabled }: CheckoutFormProps) {
-    // tutti i campi del form condividono un unico stato
+// gestione del modulo di conferma attraverso un unico stato
+function CheckoutForm({ onSubmit, disabled, total }: CheckoutFormProps) {
+    // stato centralizzato contenente tutti i campi del modulo
     const [checkout, setCheckout] = useState<Checkout>({
         nome: "",
         classe: "",
@@ -18,129 +26,90 @@ function CheckoutForm({ onSubmit, disabled }: CheckoutFormProps) {
         note: "",
     });
 
+    // gestione degli errori e dei tentativi di invio
+    const [errors, setErrors] = useState<FormErrors>(emptyErrors());
+    const [hasSubmitted, setHasSubmitted] = useState(false);
+
+    // aggiornamento automatico degli errori dopo il primo invio
+    useEffect(() => {
+        if (hasSubmitted) {
+            setErrors(getCheckoutErrors(checkout, total));
+        }
+    }, [checkout, total, hasSubmitted]);
+
+    // aggiornamento dei dati del modulo
+    function updateCheckout(updatedCheckout: Checkout) {
+        setCheckout(updatedCheckout);
+    }
+
     function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-        // impedisce il comportamento predefinito del form, evitando il ricaricamento della pagina
+        // impedisce il ricaricamento della pagina durante l'invio
         event.preventDefault();
 
-        // invia ad App tutti i dati raccolti nel form
-        onSubmit(checkout);
+        const validationErrors = getCheckoutErrors(checkout, total);
+        setErrors(validationErrors);
+        setHasSubmitted(true);
 
-        //ripristino valori iniziali post conferma
+        const hasErrors = Object.values(validationErrors).some(
+            (fieldErrors) => fieldErrors.length > 0
+        );
+
+        if (hasErrors || disabled) {
+            return;
+        }
+
+        // invio ad App dei dati validati del modulo
+        onSubmit({
+            ...checkout,
+            nome: checkout.nome.trim(),
+            classe: checkout.classe.trim(),
+        });
+
+        // ripristino dello stato iniziale dopo la conferma
         setCheckout({
             nome: "",
             classe: "",
             ritiro: "ricreazione",
             pagamento: "contanti",
             note: "",
-        })
+        });
+
+        setErrors(emptyErrors());
+        setHasSubmitted(false);
     }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-                <label htmlFor="nome" className="font-medium">
-                    Nome per il ritiro
-                </label>
+            <CheckoutFields
+                nome={checkout.nome}
+                classe={checkout.classe}
+                note={checkout.note}
+                errorsNome={errors.nome}
+                errorsClasse={errors.classe}
+                errorsNote={errors.note}
+                onNomeChange={(nome) =>
+                    updateCheckout({ ...checkout, nome })
+                }
+                onClasseChange={(classe) =>
+                    updateCheckout({ ...checkout, classe })
+                }
+                onNoteChange={(note) =>
+                    updateCheckout({ ...checkout, note })
+                }
+            />
 
-                <input
-                    id="nome"
-                    type="text"
-                    value={checkout.nome}
-                    // aggiorna solamente il nome, mantenendo invariati gli altri campi
-                    onChange={(event) =>
-                        setCheckout({ ...checkout, nome: event.target.value })
-                    }
-                    placeholder="Inserisci il tuo nome"
-                    className="w-full rounded-lg border border-gray-300 p-3"
-                />
-            </div>
-
-            <div className="space-y-2">
-                <label htmlFor="classe" className="font-medium">
-                    Classe
-                </label>
-
-                <input
-                    id="classe"
-                    type="text"
-                    value={checkout.classe}
-                    onChange={(event) =>
-                        setCheckout({ ...checkout, classe: event.target.value })
-                    }
-                    placeholder="Es. 4B"
-                    className="w-full rounded-lg border border-gray-300 p-3"
-                />
-            </div>
-
-            <div className="space-y-2">
-                <p className="font-medium">Ritiro</p>
-
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        // type button impedisce l'invio accidentale del form
-                        onClick={() =>
-                            setCheckout({ ...checkout, ritiro: "ricreazione" })
-                        }
-                        className="rounded-lg border px-4 py-2"
-                    >
-                        Ricreazione
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setCheckout({ ...checkout, ritiro: "pranzo" })
-                        }
-                        className="rounded-lg border px-4 py-2"
-                    >
-                        Pranzo
-                    </button>
-                </div>
-            </div>
-
-            <div className="space-y-2">
-                <p className="font-medium">Pagamento</p>
-
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setCheckout({ ...checkout, pagamento: "contanti" })
-                        }
-                        className="rounded-lg border px-4 py-2"
-                    >
-                        Contanti
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setCheckout({ ...checkout, pagamento: "carta" })
-                        }
-                        className="rounded-lg border px-4 py-2"
-                    >
-                        Carta
-                    </button>
-                </div>
-            </div>
-
-            <div className="space-y-2">
-                <label htmlFor="note" className="font-medium">
-                    Note
-                </label>
-
-                <textarea
-                    id="note"
-                    rows={3}
-                    value={checkout.note}
-                    onChange={(event) =>
-                        setCheckout({ ...checkout, note: event.target.value })
-                    }
-                    placeholder="Eventuali richieste"
-                    className="w-full rounded-lg border border-gray-300 p-3"
-                />
-            </div>
+            <CheckoutOptions
+                ritiro={checkout.ritiro}
+                pagamento={checkout.pagamento}
+                onRitiroChange={(ritiro) =>
+                    updateCheckout({ ...checkout, ritiro })
+                }
+                onPagamentoChange={(pagamento) =>
+                    updateCheckout({ ...checkout, pagamento })
+                }
+                errorsRitiro={errors.ritiro}
+                errorsPagamento={errors.pagamento}
+            />
 
             <button
                 type="submit"
