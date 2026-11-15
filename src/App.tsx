@@ -1,8 +1,11 @@
+
 import { useState } from "react";
 import Menu from "./components/Menu";
 import Order from "./components/Order";
+import CheckoutForm from "./components/CheckoutForm";
 import menu from "./data/menu";
 import formatPrice from "./utils/formatPrice";
+import type { Checkout } from "./types";
 
 type OrderItem = {
     productId: number;
@@ -11,12 +14,12 @@ type OrderItem = {
 
 function App() {
     const [order, setOrder] = useState<OrderItem[]>([]);
-    const [customerName, setCustomerName] = useState("");
-    const [error, setError] = useState("");
     const [confirmation, setConfirmation] = useState("");
 
+    // consegna base: gestione dell'aggiunta dei prodotti all'ordine
     function handleAdd(id: number) {
         setConfirmation("");
+
         setOrder((prevOrder) => {
             const existingItem = prevOrder.find(
                 (item) => item.productId === id
@@ -38,8 +41,7 @@ function App() {
         });
     }
 
-   
-    // consegna pro: gestione delle quantità con limite massimo di 5
+    // consegna base: gestione delle quantità e rimozione dei prodotti
     function handleQuantityChange(id: number, change: number) {
         setConfirmation("");
 
@@ -62,18 +64,8 @@ function App() {
         );
     }
 
-
-    function handleConfirmOrder() {
-        if (customerName.trim() === "") {
-            setError("Inserisci il nome per il ritiro.");
-            return;
-        }
-
-        if (order.length === 0) {
-            setError("Aggiungi almeno un prodotto all'ordine.");
-            return;
-        }
-
+    // consegna base: calcolo del totale e gestione della conferma
+    function handleConfirmOrder(checkout: Checkout) {
         const total = order.reduce((sum, item) => {
             const product = menu.find(
                 (product) => product.id === item.productId
@@ -83,12 +75,10 @@ function App() {
         }, 0);
 
         setConfirmation(
-            `Ordine per ${customerName.trim()}: ${formatPrice(total)}`
+            `Ordine per ${checkout.nome.trim} (${checkout.classe.trim}), ritiro a ${checkout.ritiro}, ${checkout.pagamento}: ${formatPrice(total)}`
         );
 
         setOrder([]);
-        setCustomerName("");
-        setError("");
     }
 
     return (
@@ -107,34 +97,10 @@ function App() {
             <section className="space-y-4">
                 <h2 className="text-2xl font-bold">Conferma ordine</h2>
 
-                <div className="space-y-2">
-                    <label htmlFor="customerName" className="font-medium">
-                        Nome per il ritiro
-                    </label>
-
-                    <input
-                        id="customerName"
-                        type="text"
-                        value={customerName}
-                        onChange={(event) => setCustomerName(event.target.value)}
-                        placeholder="Inserisci il tuo nome"
-                        className="w-full rounded-full bg-gray-200 px-5 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
-
-                {error && (
-                    <p className="text-sm text-red-600">
-                        {error}
-                    </p>
-                )}
-
-                <button
-                    onClick={handleConfirmOrder}
+                <CheckoutForm
+                    onSubmit={handleConfirmOrder}
                     disabled={order.length === 0}
-                    className="rounded-full bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
-                >
-                    Conferma ordine
-                </button>
+                />
 
                 {confirmation && (
                     <p className="font-semibold text-green-800">
