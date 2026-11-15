@@ -1,12 +1,11 @@
+
 import menu from "../data/menu";
 import formatPrice from "../utils/formatPrice";
+import type { OrderItem } from "../types";
 
 interface MenuProps {
     onAdd: (id: number) => void;
-    order: {
-        productId: number;
-        quantity: number;
-    }[];
+    order: OrderItem[];
 }
 
 const categories = [
@@ -53,9 +52,10 @@ function Menu({ onAdd, order }: MenuProps) {
                                         </div>
 
                                         <button
+                                            type="button"
                                             onClick={() => onAdd(product.id)}
                                             disabled={quantity >= 5}
-                                            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 rounded-3xl"
+                                            className="rounded-3xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             Aggiungi
                                         </button>
