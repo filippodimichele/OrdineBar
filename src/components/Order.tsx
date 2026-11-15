@@ -1,25 +1,15 @@
+
 import menu from "../data/menu";
 import formatPrice from "../utils/formatPrice";
-
-type OrderItem = {
-    productId: number;
-    quantity: number;
-};
+import type { OrderItem } from "../types";
 
 interface OrderProps {
     order: OrderItem[];
+    total: number;
     onQuantityChange: (id: number, change: number) => void;
 }
 
-function Order({ order, onQuantityChange }: OrderProps) {
-    const total = order.reduce((total, item) => {
-        const product = menu.find(
-            (product) => product.id === item.productId
-        );
-
-        return total + (product ? product.price * item.quantity : 0);
-    }, 0);
-
+function Order({ order, total, onQuantityChange }: OrderProps) {
     return (
         <section className="space-y-4">
             <h2 className="text-2xl font-bold">Il tuo ordine</h2>
@@ -49,6 +39,7 @@ function Order({ order, onQuantityChange }: OrderProps) {
 
                                     <div className="flex items-center gap-3">
                                         <button
+                                            type="button"
                                             onClick={() =>
                                                 onQuantityChange(item.productId, -1)
                                             }
@@ -62,6 +53,7 @@ function Order({ order, onQuantityChange }: OrderProps) {
                                         </span>
 
                                         <button
+                                            type="button"
                                             onClick={() =>
                                                 onQuantityChange(item.productId, 1)
                                             }

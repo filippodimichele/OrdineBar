@@ -107,6 +107,7 @@ function App() {
 
             <Order
                 order={order}
+                total={total}
                 onQuantityChange={handleQuantityChange}
             />
 
