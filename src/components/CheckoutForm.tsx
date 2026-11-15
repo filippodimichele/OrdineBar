@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Checkout } from "../types";
 import CheckoutOptions from "./CheckoutOptions";
 import CheckoutFields from "./CheckoutFields";
@@ -26,16 +26,13 @@ function CheckoutForm({ onSubmit, disabled, total }: CheckoutFormProps) {
         note: "",
     });
 
-    // gestione degli errori e dei tentativi di invio
-    const [errors, setErrors] = useState<FormErrors>(emptyErrors());
+    // gestione dei tentativi di invio
     const [hasSubmitted, setHasSubmitted] = useState(false);
 
     // aggiornamento automatico degli errori dopo il primo invio
-    useEffect(() => {
-        if (hasSubmitted) {
-            setErrors(getCheckoutErrors(checkout, total));
-        }
-    }, [checkout, total, hasSubmitted]);
+    const errors: FormErrors = hasSubmitted
+        ? getCheckoutErrors(checkout, total)
+        : emptyErrors();
 
     // aggiornamento dei dati del modulo
     function updateCheckout(updatedCheckout: Checkout) {
@@ -46,9 +43,9 @@ function CheckoutForm({ onSubmit, disabled, total }: CheckoutFormProps) {
         // impedisce il ricaricamento della pagina durante l'invio
         event.preventDefault();
 
-        const validationErrors = getCheckoutErrors(checkout, total);
-        setErrors(validationErrors);
         setHasSubmitted(true);
+
+        const validationErrors = getCheckoutErrors(checkout, total);
 
         const hasErrors = Object.values(validationErrors).some(
             (fieldErrors) => fieldErrors.length > 0
@@ -74,7 +71,6 @@ function CheckoutForm({ onSubmit, disabled, total }: CheckoutFormProps) {
             note: "",
         });
 
-        setErrors(emptyErrors());
         setHasSubmitted(false);
     }
 
